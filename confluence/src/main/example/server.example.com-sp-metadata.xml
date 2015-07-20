@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                     xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+                     entityID="http://server.example.com/">
+    <md:SPSSODescriptor AuthnRequestsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <md:KeyDescriptor use="signing">
+            <ds:KeyInfo>
+                <ds:X509Data>
+                    <ds:X509Certificate>cert-goes-here</ds:X509Certificate>
+                </ds:X509Data>
+            </ds:KeyInfo>
+        </md:KeyDescriptor>
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:emailAddress</md:NameIDFormat>
+        <md:AssertionConsumerService index="1" isDefault="true"
+                                     Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                                     Location="http://server.example.com/saml_acs.jsp"/>
+    </md:SPSSODescriptor>
+</md:EntityDescriptor>

@@ -40,7 +40,7 @@
     <controller class="com.atlassian.confluence.setup.seraph.ConfluenceSecurityController"/>
 
     <!-- Default Confluence authenticator, which uses the configured user management for authentication. -->
-    <authenticator class="com.atlassian.confluence.user.ConfluenceAuthenticator"/>
+    <!--<authenticator class="com.atlassian.confluence.user.ConfluenceAuthenticator"/>-->
 
     <!-- Custom authenticators appear below. To enable one of them, comment out the default authenticator above and uncomment the one below. -->
 
@@ -49,6 +49,59 @@
 
     <!-- Specialised version of the default authenticator which adds authenticated users to confluence-users if they aren't already a member. -->
     <!-- <authenticator class="com.atlassian.confluence.user.ConfluenceGroupJoiningAuthenticator"/> -->
+    <authenticator class="org.adeptnet.atlassian.confluence.Authenticator">
+        <init-param>
+            <param-name>krb5-enable</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-skip401</param-name>
+            <param-value>
+                ^.*[.]css$
+                ^.*[.]js$
+                ^.*[.]woff$
+                ^.*[.]png$
+                ^.*[.]gif$
+                ^.*[.]ttf$
+            </param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-realm</param-name>
+            <param-value>EXAMPLE.COM</param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-keytab</param-name>
+            <param-value>/server.example.com.keytab</param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-login-context</param-name>
+            <param-value>dynamic-example.com</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-enable</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-idp-config</param-name>
+            <param-value>/server.example.com-idp-metadata.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-sp-config</param-name>
+            <param-value>/server.example.com-sp-metadata.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-keystore-name</param-name>
+            <param-value>/server.example.com.jks</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-keystore-password</param-name>
+            <param-value>changeit</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-certificate-alias</param-name>
+            <param-value>server</param-value>
+        </init-param>
+    </authenticator>
 
     <services>
         <service class="com.atlassian.seraph.service.PathService">
