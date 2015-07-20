@@ -14,6 +14,11 @@ Enable the plugin
 Example IDP Provider metadata
 ### [server.example.com-sp-metadata.xml](src/main/example/server.example.com-sp-metadata.xml)
 Example SP metadata
+### log4j.properties
+```
+#org.adeptnet logging
+log4j.logger.org.adeptnet=INFO
+```
 
 ## Credits
 - https://github.com/lastpass/confluence-saml
