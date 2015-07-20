@@ -97,8 +97,61 @@
     <!-- CROWD:END -->
 
     <!-- CROWD:START - The authenticator below here will need to be commented out for Crowd SSO integration -->
-    <authenticator class="com.atlassian.jira.security.login.JiraSeraphAuthenticator"/>
+    <!-- <authenticator class="com.atlassian.jira.security.login.JiraSeraphAuthenticator"/> -->
     <!-- CROWD:END -->
+    <authenticator class="org.adeptnet.atlassian.jira.Authenticator">
+        <init-param>
+            <param-name>krb5-enable</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-skip401</param-name>
+            <param-value>
+                ^.*[.]css$
+                ^.*[.]js$
+                ^.*[.]woff$
+                ^.*[.]png$
+                ^.*[.]gif$
+                ^.*[.]ttf$
+            </param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-realm</param-name>
+            <param-value>EXAMPLE.COM</param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-keytab</param-name>
+            <param-value>server.example.com.keytab</param-value>
+        </init-param>
+        <init-param>
+            <param-name>krb5-login-context</param-name>
+            <param-value>dynamic-example.com</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-enable</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-idp-config</param-name>
+            <param-value>server.example.com-idp-metadata.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-sp-config</param-name>
+            <param-value>server.example.com-sp-metadata.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-keystore-name</param-name>
+            <param-value>server.example.com.jks</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-keystore-password</param-name>
+            <param-value>changeit</param-value>
+        </init-param>
+        <init-param>
+            <param-name>saml-certificate-alias</param-name>
+            <param-value>server</param-value>
+        </init-param>
+    </authenticator>
 
     <!-- NB: the URL to redirect to is now specified by login.url above -->
     <services>
