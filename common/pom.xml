@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.adeptnet</groupId>
         <artifactId>atlassian-auth</artifactId>
-        <version>1.0.1</version>
+        <version>1.0.2</version>
     </parent>
     <groupId>org.adeptnet.atlassian</groupId>
     <artifactId>atlassian-auth-common</artifactId>
@@ -31,6 +31,6 @@
             <artifactId>javax.servlet-api</artifactId>
             <version>[3.0,3.1)</version>
             <scope>provided</scope>
-        </dependency>    
+        </dependency>
     </dependencies>
 </project>

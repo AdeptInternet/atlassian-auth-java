@@ -60,6 +60,9 @@ public class Common {
     public static final String AUTHORIZATION = "Authorization";
     public static final String NEGOTIATE = "Negotiate";
     public static final String SAML_RESPONSE = "SAMLResponse";
+    public static final String SAML_RELAYSTATE = "RelayState";
+    public static final String SAML_SIGALG = "SigAlg";
+    public static final String SAML_SIGNATURE = "Signature";
 
     public final static String KRB5_ENABLE = "krb5-enable";
     public final static String KRB5_SKIP401 = "krb5-skip401";
@@ -275,7 +278,12 @@ public class Common {
         }
         final AttributeSet aset;
         try {
-            aset = getSAMLClient(request.getServletContext()).validateResponse(samlTicket);
+            final SAMLClient client = getSAMLClient(request.getServletContext());
+            if ("GET".equalsIgnoreCase(request.getMethod())) {
+                aset = client.validateResponseGET(request.getQueryString());
+            } else {
+                aset = client.validateResponsePOST(samlTicket);
+            }
         } catch (SAMLException ex) {
             LOG.fatal(ex.getMessage(), ex);
             return null;

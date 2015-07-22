@@ -52,6 +52,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.UnsupportedEncodingException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -63,22 +64,37 @@ import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.Deflater;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
+import javax.xml.XMLConstants;
 
 import javax.xml.bind.DatatypeConverter;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import org.adeptnet.atlassian.common.Common;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.xml.security.Init;
 import org.opensaml.saml2.core.NameIDPolicy;
 import org.opensaml.saml2.core.NameIDType;
 import org.opensaml.saml2.core.impl.AuthnRequestBuilder;
 import org.opensaml.saml2.core.impl.IssuerBuilder;
 import org.opensaml.saml2.core.impl.NameIDPolicyBuilder;
+import org.opensaml.ws.transport.http.HTTPTransportUtils;
 import org.opensaml.xml.security.SecurityConfiguration;
 import org.opensaml.xml.security.SecurityException;
 import org.opensaml.xml.security.SecurityHelper;
+import org.opensaml.xml.security.SigningUtil;
+import org.opensaml.xml.security.credential.Credential;
 import org.opensaml.xml.security.x509.BasicX509Credential;
+import org.w3c.dom.DOMException;
+import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
 
 /**
  * A SAMLClient acts as on behalf of a SAML Service Provider to generate
@@ -103,9 +119,12 @@ public class SAMLClient {
     private final SAMLConfig config;
     private final SignatureValidator sigValidator;
     private final BasicParserPool parsers;
+    private final Credential cred;
 
     /* do date comparisons +/- this many seconds */
     private static final int slack = 300;
+
+    private final Map<String, String> map = new HashMap<>();
 
     /**
      * Create a new SAMLClient, using the IdPConfig for endpoints and
@@ -117,9 +136,10 @@ public class SAMLClient {
     public SAMLClient(final SAMLConfig config) throws SAMLException {
         this.config = config;
 
-        final BasicCredential cred = new BasicCredential();
-        cred.setEntityId(config.getIdPConfig().getEntityId());
-        cred.setPublicKey(config.getIdPConfig().getCert().getPublicKey());
+        final BasicCredential _cred = new BasicCredential();
+        _cred.setEntityId(config.getIdPConfig().getEntityId());
+        _cred.setPublicKey(config.getIdPConfig().getCert().getPublicKey());
+        cred = _cred;
 
         sigValidator = new SignatureValidator(cred);
 
@@ -160,12 +180,14 @@ public class SAMLClient {
         }
     }
 
-    private void validate(Response response) throws ValidationException {
+    private void validatePOST(final Response response) throws ValidationException {
         // signature must match our SP's signature.
         final Signature sig1 = response.getSignature();
         sigValidator.validate(sig1);
+        validate(response);
+    }
 
-        // response must be successful
+    private void validate(final Response response) throws ValidationException {
         if (response.getStatus() == null
                 || response.getStatus().getStatusCode() == null
                 || !(StatusCode.SUCCESS_URI
@@ -426,32 +448,21 @@ public class SAMLClient {
         }
     }
 
-    /**
-     * Check an authnResponse and return the subject if validation succeeds. The
-     * NameID from the subject in the first valid assertion is returned along
-     * with the attributes.
-     *
-     * @param _authnResponse a base64-encoded AuthnResponse from the SP
-     * @throws SAMLException if validation failed.
-     * @return the authenticated subject/attributes as an AttributeSet
-     */
-    public AttributeSet validateResponse(final String _authnResponse) throws SAMLException {
-        final byte[] decoded = DatatypeConverter.parseBase64Binary(_authnResponse);
-        final String authnResponse;
-        try {
-            authnResponse = new String(decoded, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new SAMLException("UTF-8 is missing, oh well.", e);
+    private byte[] inflate(final byte[] content) throws java.io.IOException {
+        try (final java.io.InputStream is = new java.io.ByteArrayInputStream(content);
+                final java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(content.length * 2);
+                final InflaterInputStream iis = new InflaterInputStream(is, new Inflater(true))) {
+            final byte[] buffer = new byte[4096];
+            int n = 0;
+            while (-1 != (n = iis.read(buffer))) {
+                baos.write(buffer, 0, n);
+            }
+            baos.flush();
+            return baos.toByteArray();
         }
+    }
 
-        final Response response = parseResponse(authnResponse);
-
-        try {
-            validate(response);
-        } catch (ValidationException e) {
-            throw new SAMLException(e);
-        }
-
+    private AttributeSet getAttributeSet(final Response response) throws SAMLException {
         // we only look at first assertion
         if (response.getAssertions().size() != 1) {
             throw new SAMLException("Response should have a single assertion.");
@@ -482,4 +493,213 @@ public class SAMLClient {
         }
         return new AttributeSet(nameId, attributes);
     }
+
+    /**
+     * Check an authnResponse and return the subject if validation succeeds. The
+     * NameID from the subject in the first valid assertion is returned along
+     * with the attributes.
+     *
+     * @param _authnResponse a base64-encoded AuthnResponse from the SP
+     * @throws SAMLException if validation failed.
+     * @return the authenticated subject/attributes as an AttributeSet
+     */
+    public AttributeSet validateResponsePOST(final String _authnResponse) throws SAMLException {
+        final byte[] decoded = DatatypeConverter.parseBase64Binary(_authnResponse);
+        final String authnResponse;
+        try {
+            authnResponse = new String(decoded, "UTF-8");
+            if (LOG.isTraceEnabled()) {
+                LOG.trace(authnResponse);
+            }
+        } catch (UnsupportedEncodingException e) {
+            throw new SAMLException("UTF-8 is missing, oh well.", e);
+        }
+
+        final Response response = parseResponse(authnResponse);
+
+        try {
+            validatePOST(response);
+        } catch (ValidationException e) {
+            throw new SAMLException(e);
+        }
+
+        return getAttributeSet(response);
+    }
+
+    private DocumentBuilder createDocumentBuilder(boolean validating, boolean disAllowDocTypeDeclarations) throws ParserConfigurationException {
+        final DocumentBuilderFactory dfactory = DocumentBuilderFactory.newInstance();
+        dfactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+        if (disAllowDocTypeDeclarations) {
+            dfactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        }
+        dfactory.setValidating(validating);
+        dfactory.setNamespaceAware(true);
+
+        return dfactory.newDocumentBuilder();
+    }
+
+    private Element[] selectNodes(final Node _sibling, final String uri, final String nodeName) {
+        final List<Element> list = new ArrayList<>();
+        Node sibling = _sibling;
+        while (sibling != null) {
+            if (sibling.getNamespaceURI() != null && sibling.getNamespaceURI().equals(uri)
+                    && sibling.getLocalName().equals(nodeName)) {
+                list.add((Element) sibling);
+            }
+            sibling = sibling.getNextSibling();
+        }
+        return list.toArray(new Element[list.size()]);
+    }
+
+    private void initMap() {
+        if (!map.isEmpty()) {
+            return;
+        }
+        final InputStream is = org.apache.xml.security.Init.class.getResourceAsStream("resource/config.xml");
+        if (is == null) {
+            LOG.error("cannot read resource/config.xml");
+            return;
+        }
+        try {
+            /* read library configuration file */
+            final DocumentBuilder db = createDocumentBuilder(false, true);
+            final Document doc = db.parse(is);
+            Node node = doc.getFirstChild();
+            for (; node != null; node = node.getNextSibling()) {
+                if ("Configuration".equals(node.getLocalName())) {
+                    break;
+                }
+            }
+            if (node == null) {
+                LOG.error("Error in reading configuration file - Configuration element not found");
+                return;
+            }
+            for (Node el = node.getFirstChild(); el != null; el = el.getNextSibling()) {
+                if (Node.ELEMENT_NODE != el.getNodeType()) {
+                    continue;
+                }
+                if (!"JCEAlgorithmMappings".equals(el.getLocalName())) {
+                    continue;
+                }
+                final Node algorithmsNode = ((Element) el).getElementsByTagName("Algorithms").item(0);
+                if (algorithmsNode == null) {
+                    continue;
+                }
+
+                final Element[] algorithms = selectNodes(algorithmsNode.getFirstChild(), Init.CONF_NS, "Algorithm");
+                for (final Element element : algorithms) {
+                    final String algoClass = element.getAttributeNS(null, "AlgorithmClass");
+                    if (!"Signature".equals(algoClass)) {
+                        continue;
+                    }
+                    final String uri = element.getAttributeNS(null, "URI");
+                    final String name = element.getAttributeNS(null, "JCEName");
+                    map.put(name, uri);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(String.format("Mapping %s - %s", name, uri));
+                    }
+                }
+            }
+        } catch (ParserConfigurationException | SAXException | IOException | DOMException ex) {
+            LOG.error(ex.getMessage(), ex);
+        }
+    }
+
+    private String getAlgorithmURIFromID(final String algo) {
+        initMap();
+
+        if (map.containsKey(algo)) {
+            return map.get(algo);
+        }
+
+        return algo;
+    }
+
+    private String getRawQueryStringParameter(final String queryString, final String paramName) {
+        if (queryString == null) {
+            return null;
+        }
+
+        final String paramPrefix = paramName + "=";
+        int start = queryString.indexOf(paramPrefix);
+        if (start == -1) {
+            return null;
+        }
+        start += paramPrefix.length();
+
+        final int end = queryString.indexOf('&', start);
+        if (end == -1) {
+            return queryString.substring(start);
+        } else {
+            return queryString.substring(start, end);
+        }
+    }
+
+    public AttributeSet validateResponseGET(final String queryString) throws SAMLException {
+        final String samlTicket = getRawQueryStringParameter(queryString, Common.SAML_RESPONSE);
+        if (samlTicket == null) {
+            throw new SAMLException(String.format("%s cannot be null", Common.SAML_RESPONSE));
+        }
+        final String samlSig = getRawQueryStringParameter(queryString, Common.SAML_SIGALG);
+        if (samlSig == null) {
+            throw new SAMLException(String.format("%s cannot be null", Common.SAML_SIGALG));
+        }
+        final String samlSigature = getRawQueryStringParameter(queryString, Common.SAML_SIGNATURE);
+        if (samlSigature == null) {
+            throw new SAMLException(String.format("%s cannot be null", Common.SAML_SIGNATURE));
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("%s: %s", Common.SAML_RESPONSE, samlTicket));
+            LOG.debug(String.format("%s: %s", Common.SAML_SIGALG, samlSig));
+            LOG.debug(String.format("%s: %s", Common.SAML_SIGNATURE, samlSigature));
+        }
+        try {
+
+            final StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%s=%s&", Common.SAML_RESPONSE, samlTicket));
+            final String samlRelayState = getRawQueryStringParameter(queryString, Common.SAML_RELAYSTATE);
+            if (samlRelayState != null) {
+                sb.append(String.format("%s=%s&", Common.SAML_RELAYSTATE, samlRelayState));
+            }
+            sb.append(String.format("%s=%s", Common.SAML_SIGALG, samlSig));
+
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(String.format("%s: %s", "verification", sb.toString()));
+            }
+
+            if (!SigningUtil.verifyWithURI(cred, getAlgorithmURIFromID(samlSig), DatatypeConverter.parseBase64Binary(HTTPTransportUtils.urlDecode(samlSigature)), sb.toString().getBytes("UTF-8"))) {
+                throw new SAMLException("!SigningUtil.verifyWithURI");
+            }
+        } catch (UnsupportedEncodingException | SecurityException ex) {
+            throw new SAMLException(ex);
+        }
+
+        final byte[] decoded;
+        try {
+            decoded = inflate(DatatypeConverter.parseBase64Binary(HTTPTransportUtils.urlDecode(samlTicket)));
+        } catch (IOException ex) {
+            throw new SAMLException(ex);
+        }
+
+        final String authnResponse;
+        try {
+            authnResponse = new String(decoded, "UTF-8");
+            if (LOG.isTraceEnabled()) {
+                LOG.trace(authnResponse);
+            }
+        } catch (UnsupportedEncodingException e) {
+            throw new SAMLException("UTF-8 is missing, oh well.", e);
+        }
+
+        final Response response = parseResponse(authnResponse);
+
+        try {
+            validate(response);
+        } catch (ValidationException e) {
+            throw new SAMLException(e);
+        }
+        return getAttributeSet(response);
+    }
+
 }
