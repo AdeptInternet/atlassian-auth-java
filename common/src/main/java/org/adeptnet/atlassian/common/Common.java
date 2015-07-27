@@ -292,6 +292,9 @@ public class Common {
     }
 
     public boolean krb5Skip401(final String uri) {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace(String.format("krb5Skip401: %s", uri));
+        }
         for (final Pattern pattern : patterns) {
             if (pattern.matcher(uri).matches()) {
                 return true;
