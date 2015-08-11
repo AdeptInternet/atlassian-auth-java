@@ -19,9 +19,8 @@ import java.security.Principal;
 import java.util.Locale;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import static org.adeptnet.atlassian.common.Common.NEGOTIATE;
-import static org.adeptnet.atlassian.common.Common.WWW_AUTHENTICATE;
-import org.adeptnet.atlassian.saml.SAMLException;
+import org.adeptnet.auth.kerberos.Krb5;
+import org.adeptnet.auth.saml.SAMLException;
 import org.apache.commons.logging.Log;
 import org.opensaml.ws.message.encoder.MessageEncodingException;
 
@@ -91,7 +90,7 @@ public interface AuthenticatorInterface {
             if (!common.krb5Skip401(uri)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             }
-            response.setHeader(WWW_AUTHENTICATE, NEGOTIATE);
+            response.setHeader(Krb5.WWW_AUTHENTICATE, Krb5.NEGOTIATE);
         }
 
         return null;

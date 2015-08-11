@@ -17,35 +17,24 @@ package org.adeptnet.atlassian.common;
 
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import javax.naming.NamingException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.adeptnet.atlassian.kerberos.Krb5;
-import org.adeptnet.atlassian.kerberos.Krb5ConfigImpl;
-import org.adeptnet.atlassian.saml.AttributeSet;
-import org.adeptnet.atlassian.saml.SAMLClient;
-import org.adeptnet.atlassian.saml.SAMLConfigImpl;
-import org.adeptnet.atlassian.saml.SAMLException;
-import org.adeptnet.atlassian.saml.SAMLInit;
-import org.adeptnet.atlassian.saml.SAMLUtils;
+import org.adeptnet.auth.kerberos.Krb5;
+import org.adeptnet.auth.kerberos.Krb5ConfigImpl;
+import org.adeptnet.auth.saml.AttributeSet;
+import org.adeptnet.auth.saml.SAMLClient;
+import org.adeptnet.auth.saml.SAMLConfigImpl;
+import org.adeptnet.auth.saml.SAMLException;
+import org.adeptnet.auth.saml.SAMLInit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.opensaml.common.SAMLObject;
-import org.opensaml.common.binding.BasicSAMLMessageContext;
-import org.opensaml.saml2.binding.encoding.HTTPRedirectDeflateEncoder;
-import org.opensaml.saml2.core.AuthnRequest;
-import org.opensaml.saml2.metadata.Endpoint;
-import org.opensaml.saml2.metadata.impl.SingleSignOnServiceBuilder;
 import org.opensaml.ws.message.encoder.MessageEncodingException;
-import org.opensaml.ws.transport.http.HttpServletResponseAdapter;
 
 /**
  *
@@ -55,26 +44,17 @@ public class Common {
 
     private static final Log LOG = LogFactory.getLog(Common.class);
 
-    public static final String CREDS = "javax.security.auth.useSubjectCredsOnly";
-    public static final String WWW_AUTHENTICATE = "WWW-Authenticate";
-    public static final String AUTHORIZATION = "Authorization";
-    public static final String NEGOTIATE = "Negotiate";
-    public static final String SAML_RESPONSE = "SAMLResponse";
-    public static final String SAML_RELAYSTATE = "RelayState";
-    public static final String SAML_SIGALG = "SigAlg";
-    public static final String SAML_SIGNATURE = "Signature";
-
-    public final static String KRB5_ENABLE = "krb5-enable";
-    public final static String KRB5_SKIP401 = "krb5-skip401";
-    public final static String KRB5_REALM = "krb5-realm";
-    public final static String KRB5_KEYTAB = "krb5-keytab";
-    public final static String KRB5_LOGIN_CONTEXT = "krb5-login-context";
-    public final static String SAML_ENABLE = "saml-enable";
-    public final static String SAML_IDP_CONFIG = "saml-idp-config";
-    public final static String SAML_SP_CONFIG = "saml-sp-config";
-    public final static String SAML_KEYSTORE_NAME = "saml-keystore-name";
-    public final static String SAML_KEYSTORE_PASSWORD = "saml-keystore-password";
-    public final static String SAML_CERTIFICATE_ALIAS = "saml-certificate-alias";
+    private final static String KRB5_ENABLE = "krb5-enable";
+    private final static String KRB5_SKIP401 = "krb5-skip401";
+    private final static String KRB5_REALM = "krb5-realm";
+    private final static String KRB5_KEYTAB = "krb5-keytab";
+    private final static String KRB5_LOGIN_CONTEXT = "krb5-login-context";
+    private final static String SAML_ENABLE = "saml-enable";
+    private final static String SAML_IDP_CONFIG = "saml-idp-config";
+    private final static String SAML_SP_CONFIG = "saml-sp-config";
+    private final static String SAML_KEYSTORE_NAME = "saml-keystore-name";
+    private final static String SAML_KEYSTORE_PASSWORD = "saml-keystore-password";
+    private final static String SAML_CERTIFICATE_ALIAS = "saml-certificate-alias";
 
     private final Krb5ConfigImpl krb5Cfg = new Krb5ConfigImpl();
 
@@ -144,7 +124,6 @@ public class Common {
 
     private SAMLClient getSAMLClient(final ServletContext servletContext) throws SAMLException {
         if (samlClient == null) {
-            SAMLInit.initialize();
             samlCfg.init(getFileName(servletContext));
             samlClient = new SAMLClient(samlCfg);
         }
@@ -157,45 +136,7 @@ public class Common {
         }
 
         final SAMLClient client = getSAMLClient(request.getServletContext());
-        final String requestId = SAMLUtils.generateRequestId();
-        final AuthnRequest authnRequest = client.createAuthnRequest(requestId);
-
-        final HttpServletResponseAdapter responseAdapter = new HttpServletResponseAdapter(response, true);
-        final BasicSAMLMessageContext<SAMLObject, AuthnRequest, SAMLObject> context = new BasicSAMLMessageContext<>();
-        final Endpoint endpoint = new SingleSignOnServiceBuilder().buildObject();
-        endpoint.setLocation(client.getIdPConfig().getLoginUrl());
-        context.setPeerEntityEndpoint(endpoint);
-        context.setOutboundSAMLMessage(authnRequest);
-        context.setOutboundSAMLMessageSigningCredential(authnRequest.getSignature().getSigningCredential());
-        context.setOutboundMessageTransport(responseAdapter);
-        context.setRelayState(relayState == null ? "/" : relayState);
-
-        final HTTPRedirectDeflateEncoder encoder = new HTTPRedirectDeflateEncoder();
-
-        encoder.encode(context);
-    }
-
-    private String normalize(final String data) {
-        if (data.isEmpty()) {
-            return data;
-        }
-        if (data.endsWith(".")) {
-            return normalize(data.substring(0, data.length() - 1));
-        }
-        return data;
-    }
-
-    private String recurseResolveToA(final Nameserver ns, final Set<String> checked, final String host) throws NamingException {
-        if (checked.contains(host)) {
-            throw new NamingException(String.format("Recursive Name Lookup: %s", checked));
-        }
-        final String[] clookup = ns.lookup(host, "cname");
-        if (clookup.length != 0) {
-            checked.add(host);
-            return recurseResolveToA(ns, checked, normalize(clookup[0]));
-        }
-
-        return host;
+        client.doSAMLRedirect(response, relayState);
     }
 
     private Function<String, String> getFileName(final ServletContext servletContext) {
@@ -211,7 +152,7 @@ public class Common {
             }
             return null;
         }
-        final String _ticket = request.getHeader(AUTHORIZATION);
+        final String _ticket = request.getHeader(Krb5.AUTHORIZATION);
         if (_ticket == null) {
             return null;
         }
@@ -222,34 +163,21 @@ public class Common {
         if (LOG.isTraceEnabled()) {
             LOG.trace(_ticket);
         }
-        if (!System.getProperties().containsKey(CREDS)) {
-            LOG.warn(String.format("Setting [%s] to false", CREDS));
-            System.setProperty(CREDS, "false");
-        }
 
-        final String[] ticketParts = _ticket.split(" ");
-        if ((ticketParts.length != 2)
-                || (!NEGOTIATE.equals(ticketParts[0]))) {
-            LOG.error(String.format("Invalid KRB5 Ticket: %s", _ticket));
+        final String ticket = Krb5.extractTicket(_ticket);
+        if (ticket == null) {
             return null;
         }
 
-        final String serverName;
-        try {
-            serverName = recurseResolveToA(new Nameserver(), new HashSet<>(), request.getServerName());
-        } catch (NamingException ex) {
-            LOG.error(String.format("Cannot Resolve %s - %s", request.getServerName(), ex.getMessage()), ex);
-            return null;
-        }
+        final String serverName = Krb5.resolveServerName(request.getServerName());
 
-        final byte[] ticket = Base64.getDecoder().decode(ticketParts[1]);
         krb5Cfg.init(getFileName(request.getServletContext()));
         final String realm = String.format("@%s", krb5Cfg.getRealm());
         final String spn = String.format("HTTP/%s%s", serverName, realm);
         if (LOG.isDebugEnabled()) {
             LOG.debug(String.format("SPN: %s", spn));
         }
-        final String username = new Krb5(krb5Cfg).isTicketValid(spn, ticket);
+        final String username = new Krb5(krb5Cfg).isTicketValid(spn, Base64.getDecoder().decode(ticket));
 
         if (username == null || !username.endsWith(realm)) {
             LOG.error(String.format("Invalid username: %s", username));
@@ -266,7 +194,7 @@ public class Common {
             }
             return null;
         }
-        final String samlTicket = request.getParameter(SAML_RESPONSE);
+        final String samlTicket = request.getParameter(SAMLClient.SAML_RESPONSE);
         if (samlTicket == null) {
             return null;
         }

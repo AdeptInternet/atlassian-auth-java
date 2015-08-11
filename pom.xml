@@ -42,7 +42,8 @@
     <properties>
         <confluence.version>5.8.5</confluence.version>
         <jira.version>6.4.7</jira.version>
-        <opensaml.version>2.6.4</opensaml.version>
+        <auth.version>1.0.1</auth.version>
+        <javax.servlet.api>[3.0,3.1)</javax.servlet.api>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>

@@ -16,20 +16,24 @@
     
     <dependencies>
         <dependency>
-            <groupId>org.opensaml</groupId>
-            <artifactId>opensaml</artifactId>
-            <version>${opensaml.version}</version>
+            <groupId>org.adeptnet.auth</groupId>
+            <artifactId>auth-saml</artifactId>
+            <version>${auth.version}</version>
         </dependency>
         <dependency>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-            <version>[1.0,1.1)</version>
-            <scope>provided</scope>
+            <groupId>org.adeptnet.auth</groupId>
+            <artifactId>auth-kerberos</artifactId>
+            <version>${auth.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.adeptnet.auth</groupId>
+            <artifactId>auth-common</artifactId>
+            <version>${auth.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
-            <version>[3.0,3.1)</version>
+            <version>${javax.servlet.api}</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
