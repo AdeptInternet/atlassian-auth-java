@@ -8,7 +8,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.adeptnet</groupId>
     <artifactId>atlassian-auth</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
 
     <name>atlassian-auth</name>
     <description>This is the org.adeptnet:ATLASSIAN-auth plugin for Atlassian Confluence/JIRA</description>
