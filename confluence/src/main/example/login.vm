@@ -34,7 +34,7 @@
         <div id="login-container" #if($showSignup)class="unified-container"#end>
         #if ($remoteUser)
             <h1>Redirecting to <a href="/">home</a><h1>
-        #elseif
+        #else
             #applyDecorator("form-aui")
                 #decoratorParam("formName" "loginform")
                 #decoratorParam("editAction"  "$req.contextPath/saml_login.jsp?$req.getQueryString()")
