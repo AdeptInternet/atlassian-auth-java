@@ -8,7 +8,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.adeptnet</groupId>
     <artifactId>atlassian-auth</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
 
     <name>atlassian-auth</name>
     <description>This is the org.adeptnet:ATLASSIAN-auth plugin for Atlassian Confluence/JIRA</description>
@@ -42,7 +42,7 @@
     <properties>
         <confluence.version>5.8.5</confluence.version>
         <jira.version>6.4.7</jira.version>
-        <auth.version>[1.0,)</auth.version>
+        <auth.version>[1.0.4,)</auth.version>
         <javax.servlet.api>[3.0,3.1)</javax.servlet.api>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -132,6 +132,13 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>                    
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
