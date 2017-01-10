@@ -8,7 +8,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.adeptnet</groupId>
     <artifactId>atlassian-auth</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 
     <name>atlassian-auth</name>
     <description>This is the org.adeptnet:ATLASSIAN-auth plugin for Atlassian Confluence/JIRA</description>
@@ -40,8 +40,8 @@
         <module>confluence</module>
     </modules>
     <properties>
-        <confluence.version>5.9.5</confluence.version>
-        <jira.version>7.1.0</jira.version>
+        <confluence.version>6.0.3</confluence.version>
+        <jira.version>7.3.0</jira.version>
         <auth.version>[1.0.4,)</auth.version>
         <javax.servlet.api>[3.0,3.1)</javax.servlet.api>
         <maven.compiler.source>1.8</maven.compiler.source>
